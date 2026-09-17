@@ -36,7 +36,7 @@ def main():
     console.print(Panel.fit(
         "[bold cyan]OmniAssist[/bold cyan]\n"
         "[italic]Operationalized Multi-Agent Networked Intelligence & "
-        "Autonomous System Services Integration Toolkit (2026.4 \"Biscotti\")[/italic]",
+        "Autonomous System Services Integration Toolkit (2026.5 \"Cake\")[/italic]",
         border_style="cyan"
     ))
     console.print("[dim]Type '/help' for commands or 'exit', 'quit', 'q' to terminate session.[/dim]\n")
@@ -49,9 +49,17 @@ def main():
 
     if agent.offline:
         console.print(
-            "[yellow]Offline mode:[/yellow] no GEMINI_API_KEY found, so replies are "
-            "simulated. Set the key in .env to use a real model.\n"
+            "[yellow]Offline mode:[/yellow] no provider API key is set, so replies are "
+            "simulated. Copy .env.example to .env and add a key to use a real model.\n"
         )
+    else:
+        console.print(
+            f"[dim]Model: {agent.provider}/{agent.model_id}"
+            + (f"  (fallbacks: {', '.join(agent.fallback_models)})" if agent.fallback_models else "")
+            + "[/dim]\n"
+        )
+    for problem in agent.config_errors:
+        console.print(f"[dim yellow]Skipped: {problem}[/dim yellow]")
 
     while True:
         try:

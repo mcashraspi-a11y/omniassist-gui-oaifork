@@ -1,17 +1,18 @@
 """
 ==============================================================================
- OMNIASSIST ENTRY POINT SCRIPT (2026.4 "Biscotti")
+ OMNIASSIST ENTRY POINT SCRIPT (2026.5 "Cake")
 ==============================================================================
- MODEL PRIORITY & FALLBACK HIERARCHY:
-   Primary Model:  Gemini 3.5 Flash-Lite
-   Fallback 1:     Gemini 3.1 Flash-Lite
-   Fallback 2:     Gemini 3 Flash
-   Fallback 3:     Gemini 2.5 Flash
-   Fallback 4:     Gemini 2.5 Flash-Lite
-   Fallback 5:     Gemma 4
-   Rule:           Automatically skip deprecated or decommissioned models.
-                   Try the primary model first, then move down the fallback
-                   chain until a model succeeds.
+ MODEL PROVIDERS:
+   OmniAssist speaks the OpenAI /chat/completions protocol, so it works with
+   OpenAI and any compatible provider (Google, Groq, Mistral, OpenRouter,
+   Ollama, vLLM, LM Studio, ...).
+
+   Providers, endpoints, and the model fallback chain live in
+   config/config.yml. API keys are read from environment variables only --
+   never from the config file. See .env.example.
+
+   Rule: try the primary model first, then step down the fallback chain. A
+   step may cross to a different provider and therefore a different API key.
 
  USAGE:
    python main.py                 # interactive terminal interface

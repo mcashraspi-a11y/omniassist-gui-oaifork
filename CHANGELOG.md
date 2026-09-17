@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/).
 
+## [v2026.5] - 2026-09-17
+
+_Makes OmniAssist provider-agnostic. The agent now speaks the OpenAI `/chat/completions` protocol instead of being tied to Google Gemini, so OpenAI and any compatible provider work through one code path._
+
+### Changed
+- Replaced the Gemini-only integration with an OpenAI-compatible client (`core/llm.py`). Google is still supported through its OpenAI-compatible endpoint.
+- `core/agent.py` now drives an OpenAI chat-message loop with native function calling, replacing the Gemini content/tool-call format.
+- `core/router.py` emits OpenAI function tool schemas (`{"type": "function", "function": {...}}`) derived from tool signatures and type annotations.
+- `core/state.py` stores OpenAI-shaped messages and trims history without orphaning a tool result from its call.
+- `config/config.yml` is now the single source for providers, endpoints, and the model fallback chain. It contains no secrets.
+- Model entries accept shorthand (`"gpt-4o"`), provider-qualified shorthand (`"groq/llama-3.3-70b"`), longhand dicts, and a `models:` list that fans one entry out into several targets. Any entry can override `base_url`, `api_key_env`, `temperature`, or `max_tokens`.
+- Provider endpoints resolve from the config, then a built-in table of known providers, then `OPENAI_BASE_URL`-style environment overrides.
+- `interfaces/api/server.py` reports the resolved provider chain and any skipped entries in `GET /api/health`.
+- The CLI and web UI display the active `provider/model` and surface models skipped for a missing key.
+- Version is now 2026.5 "Cake".
+
+### Fixed
+- Corrected shipped model IDs against live provider model lists. The Groq fallback named `llama-3.3-70b-versatile`, which Groq has retired and now rejects with `model_not_found`; the chain now uses models confirmed working against a live Groq key.
+
+### Added
+- `config/config.yaml.example`, a fully annotated configuration template. Every model ID in it was checked against a live endpoint and labelled `[LIVE]` (called end to end, chat and tool calling confirmed) or `[CATALOG]` (present in OpenRouter's public model catalog but not called, because no key was available). It demonstrates a fallback provider with its own chain: Groq's four verified models, then OpenRouter's two, then a local Ollama server.
+- Recorded the Groq models that chat but reject the `tools` parameter (`allam-2-7b`, `groq/compound`, `groq/compound-mini`), so they are excluded on evidence rather than by assumption.
+- Fallback that can cross both providers and API keys: a failed or rate-limited provider steps down to the next entry, which may be a different vendor with a different credential.
+- Support for keyless local servers (Ollama, vLLM, LM Studio) via `api_key_optional`, including as a fallback behind cloud models.
+- `tests/test_llm.py` covering target resolution, key discovery, endpoint overrides, the fallback chain, and key redaction.
+- An end-to-end agent loop test that asserts a real tool executes and that its result is fed back to the model as a `tool` message.
+
+### Removed
+- The `google-genai` dependency, replaced by `openai`.
+- `tests/test_core.py` and `tests/test_fallback_chain.py`, whose coverage moved to `tests/test_llm.py`, `tests/test_agent_loop.py`, and `tests/test_mcp_tools.py`.
+
+### Security
+- No API key is ever read from `config/config.yml`; keys come only from the environment.
+- `ModelTarget.describe()` redacts keys so they cannot leak into logs or the health endpoint.
+
 ## [v2026.4] - 2026-09-17
 
 _Initial release. Version numbers 2026.1–2026.3 were skipped so the project version aligns with the CLI release 2026.4 "Biscotti"._
@@ -50,4 +85,5 @@ _Initial release. Version numbers 2026.1–2026.3 were skipped so the project ve
 - Documented that `mcp_tools/shell_tool.py` is a denylist and not a sandbox. It is bypassable via path traversal (`rm -rf /opt/../etc`), trailing slashes, unexpanded variables (`$HOME`), long flags (`--recursive --force`), command chaining, and `find / -delete`. The README and Security section now state this plainly rather than describing the tooling as sandboxed.
 - Added optional token auth to the web API, which exposes shell-executing tools over HTTP for the first time.
 
+[v2026.5]: https://github.com/AfifaM9/omniassist/tree/v2026.5
 [v2026.4]: https://github.com/AfifaM9/omniassist/tree/v2026.4

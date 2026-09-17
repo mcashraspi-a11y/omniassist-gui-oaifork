@@ -17,7 +17,7 @@ By participating, you agree to abide by our community standards. Be respectful, 
 
 3. **Development Guidelines**
    - Follow standard Python (PEP 8) coding conventions.
-   - Ensure your code integrates cleanly with the `google-genai` SDK and existing MCP tool registries.
+   - Ensure your code integrates cleanly with the OpenAI-compatible client in `core/llm.py` and existing MCP tool registries.
    - Add unit tests under the `tests/` directory for any new logic.
 
 4. **Submitting a Pull Request**

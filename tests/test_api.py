@@ -28,8 +28,11 @@ class TestApi(unittest.TestCase):
         data = self.client.get("/api/health").json()
         self.assertEqual(data["status"], "ok")
         self.assertTrue(data["offline"])
+        self.assertIsInstance(data["provider"], str)
         self.assertGreater(data["tools"], 0)
-        self.assertEqual(data["model"], "gemini-3.5-flash-lite")
+        self.assertEqual(data["model"], "gpt-4o-mini")
+        self.assertEqual(data["chain"], [])
+        self.assertTrue(data["config_errors"])
 
     def test_no_token_configured_means_open_access(self):
         """With no OMNIASSIST_API_TOKEN set, local use needs no credentials."""
