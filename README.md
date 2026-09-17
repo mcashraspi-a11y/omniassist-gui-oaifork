@@ -4,9 +4,9 @@
 ![Lint](https://github.com/AfifaM9/omniassist-gui/actions/workflows/lint.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Version](https://img.shields.io/badge/version-2026.4-blue)
+![Version](https://img.shields.io/badge/version-2026.5-blue)
 
-Operationalized Multi-Agent Networked Intelligence & Autonomous System Services Integration Toolkit (2026.4 "Biscotti")
+Operationalized Multi-Agent Networked Intelligence & Autonomous System Services Integration Toolkit (2026.5 "Cake")
 
 ---
 
@@ -28,7 +28,7 @@ Operationalized Multi-Agent Networked Intelligence & Autonomous System Services 
 
 ## Overview
 
-**OmniAssist** is a lightweight, modular, and extensible AI operational agent framework designed to bridge the gap between large language models and local machine execution. By combining the power of the Google GenAI SDK, native function-calling capabilities, and a flexible Model Context Protocol (MCP) tool registry, OmniAssist operates directly within your terminal environment or in the browser as a fully autonomous assistant.
+**OmniAssist** is a lightweight, modular, and extensible AI operational agent framework designed to bridge the gap between large language models and local machine execution. By combining an OpenAI-compatible chat and function-calling layer, a flexible Model Context Protocol (MCP) tool registry, and a configurable model/provider fallback chain, OmniAssist operates directly within your terminal environment or in the browser as a fully autonomous assistant.
 
 The agent runs a real multi-step loop: it plans, calls tools, observes the results, and keeps iterating until the task is done. Two front-ends are included — an interactive terminal interface built on Rich, and a browser UI with a live execution trace.
 
@@ -70,13 +70,15 @@ omniassist
 ├── README.md                # Project documentation, architecture overview, and setup guide
 ├── main.py                  # Entry point (CLI by default, web server with --web)
 ├── config/
-│   └── config.yml           # Unified YAML configuration file for models, paths, and options
+│   ├── config.yml           # Unified YAML configuration file for models, paths, and options
+│   └── config.yaml.example  # Annotated template: verified model/provider fallback chains
 ├── core/                    # Core agent orchestrator & execution loop
 │   ├── __init__.py
 │   ├── agent.py             # Main OmniAssist class (lifecycle, multi-step agent loop)
 │   ├── events.py            # AgentEvent objects streamed to the CLI and Web UI
+│   ├── llm.py               # OpenAI-compatible client, providers, and fallback chain
 │   ├── reasoning.py         # Cognitive engine (ReAct, Plan-and-Solve, Self-Reflection)
-│   ├── router.py            # Tool declarations + execution bridge to the registry
+│   ├── router.py            # OpenAI function tool schemas + execution bridge to the registry
 │   ├── selfmodify.py        # Code self-rewriting, agent update, and runtime patch logic
 │   └── state.py             # Active conversation state & runtime context tracking
 ├── interfaces/              # I/O adapters & communication channels
@@ -113,9 +115,8 @@ omniassist
 │   ├── test_agent_loop.py   # Agent loop, tool execution, and result feedback tests
 │   ├── test_api.py          # FastAPI endpoints, WebSocket streaming, and auth tests
 │   ├── test_cli.py          # Tests for CLI slash commands
-│   ├── test_core.py         # Unit tests for initialization, config, and offline mode
-│   ├── test_fallback_chain.py # Model fallback ordering and failure handling
-│   ├── test_mcp_tools.py    # Tool registry discovery and execution tests
+│   ├── test_llm.py          # Target resolution, key handling, and fallback chain tests
+│   ├── test_mcp_tools.py    # Tool registry, execution, and OpenAI schema tests
 │   └── test_shell_tool.py   # Security tests for shell command blocking
 ├── requirements.txt         # Runtime dependencies
 ├── requirements-dev.txt     # Dev dependencies (includes -r requirements.txt)
@@ -127,7 +128,7 @@ omniassist
 ## Prerequisites & Requirements
 
 - **Python:** Version 3.11 or higher.
-- **API Key:** A valid Google Gemini API key (`GEMINI_API_KEY` or `GOOGLE_API_KEY`). Optional — without one the app runs in offline mode.
+- **API Key:** One for whichever provider you use, supplied through the environment (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, ...). Optional — without any key the app runs in offline mode.
 
 ---
 
@@ -165,25 +166,50 @@ omniassist
    cp .env.example .env
    ```
 
-2. Open the `.env` file and insert your Gemini API key:
+2. Open the `.env` file and set the key for each provider you want to use. Only the ones you set are used; the rest are skipped:
+
    ```env
-   GEMINI_API_KEY=your_actual_api_key_here
+   GROQ_API_KEY=gsk_...
+   # OPENAI_API_KEY=sk-...
+   # OPENROUTER_API_KEY=sk-or-...
    ```
 
-3. Adjust model settings in `config/config.yml` if needed. The `primary` model is tried first, then each entry under `fallbacks` in order:
+   With a single key set the app runs on that provider's chain alone; with none it falls back to offline mode.
+
+3. `config/config.yml` ships ready to run and already selects a working chain. To start from a fully annotated template instead — including a fallback provider with its own chain, and notes on which models were verified against live endpoints — copy the example:
+
+   ```bash
+   cp config/config.yaml.example config/config.yml
+   ```
+
+   The chain below is tried in order. Group each provider's models together to give it its own chain, so Groq runs its models first, then OpenRouter, then a local server:
 
    ```yaml
+   provider: "groq"
+
    models:
-     primary: "gemini-3.5-flash-lite"
+     primary:
+       provider: "groq"
+       model: "openai/gpt-oss-120b"
      fallbacks:
-       - "gemini-3.1-flash-lite"
-       - "gemini-3.5-flash"
-       - "gemini-3-flash-preview"
-       - "gemini-2.5-flash"
-       - "gemini-3.8-flash"
-       - "gemma-4-31b-it"
-       - "gemma-4-26b-a4b-it"
+       # Groq's own chain.
+       - provider: "groq"
+         model: "openai/gpt-oss-20b"
+       - provider: "groq"
+         model: "qwen/qwen3.8-27b"
+       # Fallback provider, with its own chain.
+       - provider: "openrouter"
+         model: "meta-llama/llama-3.3-70b-instruct"
+       - provider: "openrouter"
+         model: "deepseek/deepseek-chat"
+       # Last resort: local, needs no key.
+       - provider: "ollama"
+         model: "llama3.1"
    ```
+
+   Any entry may also override `base_url` or `api_key_env`, and a `models:` list fans one entry out into several targets. Deployment-specific endpoints can be changed without editing the file by setting `<PROVIDER>_BASE_URL`, such as `GROQ_BASE_URL`.
+
+   Keys are never read from this file — only from the environment.
 
 ---
 

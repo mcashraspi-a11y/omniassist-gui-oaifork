@@ -1,18 +1,134 @@
+# OmniAssist configuration.
+#
+# This file is committed, so it must never contain secrets. API keys are read
+# from environment variables only; see .env.example for the list.
+#
+# OmniAssist speaks the OpenAI /chat/completions protocol, so any provider that
+# implements it works: OpenAI, Google's OpenAI-compatible endpoint, Groq,
+# Mistral, OpenRouter, Together, DeepSeek, xAI, and local servers such as
+# Ollama, vLLM, LM Studio, or llama.cpp.
+
 app:
   name: "OmniAssist"
-  version: "2026.4 \"Biscotti\""
+  version: "2026.5 \"Cake\""
   description: "Operationalized Multi-Agent Networked Intelligence & Autonomous System Services Integration Toolkit"
 
+# Default provider for model entries that do not name one.
+provider: "openai"
+
+# ---------------------------------------------------------------------------
+# PROVIDERS
+# ---------------------------------------------------------------------------
+# Each provider is a base_url plus the name of the environment variable that
+# holds its API key. Nothing secret belongs here.
+#
+#   base_url      OpenAI-compatible API root, ending in /v1.
+#   api_key_env   Environment variable with the key. For known providers this
+#                 can be omitted -- OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY,
+#                 and so on are found automatically.
+#   api_key_optional: true  for servers that need no credential.
+#
+# A deployment can also override any base_url without editing this file by
+# setting <PROVIDER>_BASE_URL, e.g. OPENAI_BASE_URL.
+providers:
+  openai:
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+
+  # Google exposes an OpenAI-compatible surface. Verified working with
+  # gemini-2.5-flash and gemini-1.5-flash.
+  google:
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    api_key_env: "GEMINI_API_KEY"
+
+  groq:
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: "GROQ_API_KEY"
+
+  mistral:
+    base_url: "https://api.mistral.ai/v1"
+    api_key_env: "MISTRAL_API_KEY"
+
+  deepseek:
+    base_url: "https://api.deepseek.com/v1"
+    api_key_env: "DEEPSEEK_API_KEY"
+
+  xai:
+    base_url: "https://api.x.ai/v1"
+    api_key_env: "XAI_API_KEY"
+
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    api_key_env: "OPENROUTER_API_KEY"
+
+  together:
+    base_url: "https://api.together.xyz/v1"
+    api_key_env: "TOGETHER_API_KEY"
+
+  # Local OpenAI-compatible servers. No key required.
+  ollama:
+    base_url: "http://localhost:11434/v1"
+    api_key_optional: true
+
+  vllm:
+    base_url: "http://localhost:8000/v1"
+    api_key_optional: true
+
+  lmstudio:
+    base_url: "http://localhost:1234/v1"
+    api_key_optional: true
+
+# ---------------------------------------------------------------------------
+# MODELS
+# ---------------------------------------------------------------------------
+# The chain is tried in order until one target answers:
+#
+#     primary -> fallbacks[0] -> fallbacks[1] -> ...
+#
+# Falling through can cross providers and therefore cross API keys, so a
+# missing or rate-limited provider degrades to the next one instead of failing.
+#
+# Entry forms:
+#   "model-name"                                   # uses `provider` above
+#   "provider/model-name"                          # shorthand
+#   {provider: groq, model: "openai/gpt-oss-120b"} # longhand
+#   {provider: openai, models: [a, b]}             # fan out into several targets
+#
+# Any entry may also override base_url, api_key_env, temperature, or max_tokens.
+#
+# Only entries whose provider key is present in the environment are kept;
+# everything else is skipped and reported rather than attempted. Comment out
+# what you cannot authenticate. A provider that takes no credential (local
+# servers, or api_key_optional) is always kept.
+#
+# To give a provider its own fallback chain, group its models together in
+# order; the groups are then walked top to bottom. See
+# config/config.yaml.example for a worked example with verified model IDs.
 models:
-  primary: "gemini-3.5-flash-lite"
+  primary:
+    provider: "openai"
+    model: "gpt-4o-mini"
+
   fallbacks:
-    - "gemini-3.1-flash-lite"
-    - "gemini-3.5-flash"
-    - "gemini-3-flash-preview"
-    - "gemini-2.5-flash"
-    - "gemini-3.8-flash"
-    - "gemma-4-31b-it"
-    - "gemma-4-26b-a4b-it"
+    - provider: "openai"
+      model: "gpt-4o"
+    - provider: "google"
+      model: "gemini-2.5-flash"
+    - provider: "groq"
+      # Groq retired llama-3.3-70b-versatile; it now returns model_not_found.
+      # openai/gpt-oss-120b is confirmed working (chat + tool calling).
+      model: "openai/gpt-oss-120b"
+    - provider: "mistral"
+      model: "mistral-large-latest"
+    - provider: "deepseek"
+      model: "deepseek-chat"
+    - provider: "openrouter"
+      model: "meta-llama/llama-3.3-70b-instruct"
+    # Kept commented so a fresh clone with no keys still runs in offline mode
+    # rather than trying to reach a local server that may not be running.
+    # Uncomment to fall back to a local server when every cloud key is missing.
+    # - provider: "ollama"
+    #   model: "llama3.1"
 
 agent:
   max_iterations: 10

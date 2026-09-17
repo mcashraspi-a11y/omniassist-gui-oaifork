@@ -152,7 +152,7 @@ async function loadHealth() {
     const res = await apiFetch("/api/health");
     const h = await res.json();
     el("version").textContent = `v${h.version}`;
-    el("model-text").textContent = h.model;
+    el("model-text").textContent = h.provider ? `${h.provider}/${h.model}` : h.model;
     const dot = el("status-dot");
     if (h.offline) {
       dot.className = "dot offline";
@@ -160,6 +160,19 @@ async function loadHealth() {
     } else {
       dot.className = "dot ok";
       el("status-text").textContent = `${h.tools} tools ready`;
+    }
+    // Providers skipped because their key is absent are surfaced, not hidden.
+    if (h.config_errors && h.config_errors.length) {
+      toolsBox.insertAdjacentHTML(
+        "afterbegin",
+        h.config_errors
+          .map(
+            (err) =>
+              `<div class="tool-card tool-error"><div class="name">model skipped</div>
+               <div class="desc">${escapeHtml(err)}</div></div>`
+          )
+          .join("")
+      );
     }
     if (h.tool_load_errors && Object.keys(h.tool_load_errors).length) {
       toolsBox.insertAdjacentHTML(

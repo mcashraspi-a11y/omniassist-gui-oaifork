@@ -33,7 +33,7 @@ from core.agent import OmniAssist
 from memory.session import SessionPersistence
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
-VERSION = '2026.4 "Biscotti"'
+VERSION = '2026.5 "Cake"'
 
 # The agent can run shell commands and write files, so the API is not safe to
 # expose unauthenticated. Set OMNIASSIST_API_TOKEN to require a bearer token.
@@ -87,8 +87,11 @@ def health():
         "status": "ok",
         "version": VERSION,
         "offline": agent.offline,
+        "provider": agent.provider,
         "model": agent.model_id,
         "fallbacks": agent.fallback_models,
+        "chain": [t.describe() for t in agent.targets],
+        "config_errors": agent.config_errors,
         "max_iterations": agent.max_iterations,
         "tools": len(agent.tool_registry.tools),
         "tool_load_errors": agent.tool_registry.load_errors,
